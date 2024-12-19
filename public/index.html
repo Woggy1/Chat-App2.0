@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чат на WebSocket</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f3f3f3;
+        }
+        .chat-container {
+            width: 400px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #4CAF50;
+            color: #fff;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+        #chat {
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            border-bottom: 1px solid #ccc;
+        }
+        #chat div {
+            margin-bottom: 10px;
+        }
+        .chat-footer {
+            display: flex;
+            padding: 10px;
+            background: #f1f1f1;
+        }
+        #message {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            background: #4CAF50;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            Чат на WebSocket
+        </div>
+        <div id="chat"></div>
+        <div class="chat-footer">
+            <input id="message" placeholder="Введіть повідомлення" />
+            <button onclick="sendMessage()">Надіслати</button>
+        </div>
+        <button id="disconnect" onclick="disconnect()">Відключитися</button>
+    </div>
+
+    <script>
+        let socket;
+        let userId;
+
+        function initWebSocket() {
+            socket = new WebSocket('ws://localhost:3000');
+
+            // Встановлення підключення
+            socket.onopen = () => {
+                console.log('З’єднання відкрите');
+            };
+
+            // Отримання повідомлень
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'welcome') {
+                    userId = data.id;
+                    document.getElementById('chat').innerHTML += `<div>Ваш ID: ${userId}</div>`;
+                } else if (data.type === 'message') {
+                    document.getElementById('chat').innerHTML += `<div>${data.data}</div>`;
+                }
+            };
+
+            // Закриття з’єднання
+            socket.onclose = () => {
+                console.log('З’єднання закрите');
+                alert('Ви відключені від чату');
+                disableChat();
+            };
+
+            // Помилки
+            socket.onerror = (error) => {
+                console.error('Помилка WebSocket:', error);
+            };
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('message');
+            const message = messageInput.value.trim();
+            if (message) {
+                socket.send(message);
+                messageInput.value = '';
+            }
+        }
+
+        function disconnect() {
+            fetch(`http://localhost:3000/disconnect?id=${userId}`)
+                .then(response => {
+                    if (response.ok) {
+                        socket.close();
+                    } else {
+                        alert('Не вдалося відключитися');
+                    }
+                })
+                .catch(error => console.error('Помилка відключення:', error));
+        }
+
+        function disableChat() {
+            document.getElementById('message').disabled = true;
+            document.querySelector('button[onclick="sendMessage()"]').disabled = true;
+            document.getElementById('disconnect').disabled = true;
+        }
+
+        initWebSocket();
+    </script>
+</body>
+</html>
